@@ -1,20 +1,22 @@
-{ pkgs, treefmt-nix, ... }:
+{ treefmt-nix, pkgs, ... }:
 let
   fmt = {
     projectRootFile = "flake.nix";
 
-    settings.global.excludes = [
-      "*.lock"
-      "bun.lock"
-      "node_modules/*"
-      "dist/*"
-      "coverage/*"
-    ];
-
+    # ### workspace-formatters
+    # #### source: workspace
     programs = {
       actionlint.enable = true;
       nixfmt.enable = true;
-      prettier.enable = true;
+      prettier = {
+        enable = true;
+        excludes = [
+          ".claude/skills/vendor/**"
+          "Changelog.md"
+          "docs/developer/CommitConventions.md"
+          "infra/root_chart/**"
+        ];
+      };
       shfmt.enable = true;
     };
   };

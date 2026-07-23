@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+root_dir="$(git rev-parse --show-toplevel)"
+cd "${root_dir}"
+
 echo "🧹 Cleaning dist/..."
 rm -rf dist
 
@@ -21,5 +24,9 @@ echo "🔎 Verifying artifacts..."
 for artifact in dist/index.js dist/index.cjs dist/index.d.ts dist/index.d.cts; do
   [[ ! -f ${artifact} ]] && echo "❌ build artifact missing: ${artifact}" >&2 && exit 1
 done
+
+echo "🏃 Verifying ESM and CJS runtime exports..."
+node --input-type=module -e "import { buildSampleKey } from './dist/index.js'; if (buildSampleKey('Build Proof', 'ESM') !== 'build-proof:esm') process.exit(1)"
+node -e "const { buildSampleKey } = require('./dist/index.cjs'); if (buildSampleKey('Build Proof', 'CJS') !== 'build-proof:cjs') process.exit(1)"
 
 echo "✅ Built dist/index.{js,cjs,d.ts,d.cts}"

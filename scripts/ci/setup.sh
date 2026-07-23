@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-echo "📦 Installing dependencies..."
-bun install --frozen-lockfile
-echo "✅ Dependencies installed"
+./scripts/local/skills-sync.sh
+
+# ### bun-base-setup
+# #### source: bun-base
+./scripts/local/setup.sh
+
+echo "✅ Repository setup complete"

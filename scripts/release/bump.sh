@@ -1,11 +1,14 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Stamp the release version into package.json so builds from the tag report the real version.
-version="${1:?Usage: bump.sh <version>}"
+version="${1:-}"
+[ -z "${version}" ] && echo "❌ version argument not set" >&2 && exit 1
 
-# `sg release -i npm` mutates package.json (ephemeral plugin installs) — restore before stamping.
-git checkout HEAD -- package.json
-# Version-only edit: bun.lock does not pin the root version, so no lockfile change is needed.
-bun pm pkg set "version=${version}"
-echo "✅ package.json version -> ${version}"
+root_dir="$(git rev-parse --show-toplevel)"
+cd "${root_dir}"
+
+git checkout HEAD -- package.json VERSION
+bun pm pkg set "version=${version#v}"
+printf '%s\n' "${version#v}" >VERSION
+
+echo "✅ package.json and VERSION stamped to ${version#v}"

@@ -11,11 +11,6 @@ export class RedisKeyValueStore implements IKeyValueStore {
       maxRetriesPerRequest: 3,
       lazyConnect: true,
     });
-    this.client.on('error', (error: Error) => {
-      if ((error as NodeJS.ErrnoException).code !== 'ECONNREFUSED') {
-        console.error(`[redis-kv-store] unexpected connection error: ${error.message}`);
-      }
-    });
   }
 
   async set(key: string, value: string): Promise<void> {

@@ -5,96 +5,77 @@ title: Bun Baseline
 
 # Bun Baseline
 
-`bun-base` is the Bun foundation for `AtomiCloud/diene.bun-lib`. It is a
-**sibling-template foundation**: sibling templates copy it and adapt a small set
-of settings (see [Template maintenance](#template-maintenance)) before formal
-CyanPrint template promotion.
-
-Only Bun-specific baseline behavior is documented here. General standards stay
-in `docs/developer/standard/`.
+`bun-base` is the Bun and TypeScript foundation inherited by the Bun sample
+family. This page documents only language-layer behavior; general engineering
+rules remain in `docs/standards/`.
 
 ## Local commands
 
-New Bun entries:
+- `pls setup` installs the locked Bun dependencies after synchronizing vendored
+  package skills.
+- `pls lint` runs every generated pre-commit hook.
+- `pls test`, `pls test:unit`, and `pls test:int` run the test tiers without
+  coverage.
+- `pls test:coverage`, `pls test:unit:coverage`, and
+  `pls test:int:coverage` write scoped LCOV artifacts.
+- `pls test:watch` watches the unit tier.
+- `pls build` bundles `src/index.ts` to `dist/index.js`.
+- `pls deadcode` runs the two non-blocking LLM-review Knip configurations.
+- `pls run -- <args>` executes the source entry point.
+- `pls preview -- <args>` rebuilds and executes the bundled artifact.
 
-- `pls test` — all suites, no coverage (unit + int)
-- `pls test:unit`, `pls test:int` — one suite, no coverage
-- `pls test:coverage`, `pls test:unit:coverage`, `pls test:int:coverage` — with
-  per-tier coverage
-- `pls test:watch` — unit watch mode
-- `pls build`
-- `pls deadcode`
+There is no `pls dev`, `pls up`, or `pls down` surface in this base. Hot reload
+belongs to runnable descendants, and the integration tier owns its Redis
+dependency through Testcontainers.
 
-## Test modes
+## Quality gates
 
-Two suites are split by Bun config so the fast path stays Docker-free:
+Biome is lint-only; treefmt owns formatting. TypeScript uses strict no-emit
+typechecking. Knip runs twice as blocking hooks: the repository view includes
+tests, while the production view starts at `src/index.ts` and catches files
+used only by tests. The LLM Knip variants are review-only and never suppress
+strict findings.
 
-- **Unit** (`bunfig.unit.toml`, root `tests/unit`) — pure `src/lib` behaviour.
-  No containers; this is the default fast path.
-- **Integration** (`bunfig.int.toml`, root `tests/integration`) — exercises the
-  `src/adapters` boundary against a throwaway Redis container via Testcontainers.
-  Slow and Docker-dependent, so it lives on a dedicated path.
+## Test and coverage tiers
 
-The same `tasks/Taskfile.test.yaml` is imported twice from the root `Taskfile.yaml`
-(parameterised by `MODE`/`CONFIG`) as the internal `unit:*` and `int:*` namespaces;
-the `test:*` root tasks are thin delegations onto them — there is one test recipe,
-not two.
+- Unit tests live under `tests/unit/` and cover only `src/lib/**`.
+- Integration tests live under `tests/integration/`, use Testcontainers Redis,
+  and cover only `src/adapters/**`.
+- Both CI entry points require an LCOV artifact, reject paths outside their
+  tier ledger, and require every ledger line to be hit.
+- Codecov is informational and uploads the independent `unit` and `int` flags
+  with carryforward enabled.
 
-Prettier owns formatting. Biome is lint-only. Biome and Knip are declared in
-`package.json`, locked by `bun.lock`, and invoked from `./node_modules/.bin` in
-pre-commit.
+Tests use `bun:test`, `describe`/`it`, AAA comments, and `should` assertions.
+Container images are version-pinned without digests.
 
-## Coverage gates
+## Build and runtime
 
-- Unit coverage: `coverage/unit/lcov.info` — the `src/lib` domain ledger (100%
-  goal).
-- Integration coverage: `coverage/int/lcov.info` — the `src/adapters` ledger.
-  Each bunfig scopes its ledger via `coveragePathIgnorePatterns` (bun has no
-  include mode).
-- The local coverage artifact is blocking.
-- Codecov upload is non-blocking and split by `unit` / `int` flags.
-- `codecov.yml` thresholds are informational by default.
+The local build and CI build share `scripts/local/build.sh`. The sample prints
+a composed key by default; `REDIS_HOST` plus `REDIS_PORT` enable a Redis round
+trip.
 
-## Build & runtime
+Application descendants use pino JSON logging with trace-context injection
+from `@atomicloud/diene.otel`. That application logging layer is intentionally
+not duplicated in this toolchain sample before the shared library is consumed.
 
-- Bun is the build toolchain (bundler, type emit, pack, publish) — there is no
-  added node/npm runtime.
-- `pls build` runs `scripts/local/build.sh`, which bundles `src/index.ts` into a
-  dual **ESM + CJS** package plus flat type declarations:
-  `dist/index.js` (`--format esm`), `dist/index.cjs` (`--format cjs`), and
-  `dist/index.d.ts` / `dist/index.d.cts`. Runtime dependencies stay external
-  (`--packages external`), so the build never names a sample dependency.
-- `scripts/ci/build.sh` wraps that build with dependency setup; the package shape is
-  validated separately by `scripts/ci/pkg-validate.sh` (`bun pm pack` → `publint` + `attw`).
-  Only `dist` is published (`package.json` `files`).
-- This sample is a **library**, not a runnable service — `src/index.ts` has no
-  entrypoint; it re-exports the sample API (`buildSampleKey`, `createRedisStore`,
-  `persistSample`) and its types (`IKeyValueStore`, `RedisConnection`).
+## TypeScript standards
 
-## External service / compute cost
+Read the TypeScript variants alongside their shared standards:
 
-- Codecov upload runs only in CI and is best-effort.
-- Integration tests require a Docker runtime (Testcontainers spins up a throwaway
-  Redis); unit tests and the build do not.
-- Unit, integration, build, and `package-validate` (`publint` + `attw`) are
-  separate CI jobs.
+- [date/time](../standards/datetime/languages/typescript.md)
+- [domain-driven design](../standards/domain-driven-design/languages/typescript.md)
+- [functional practices](../standards/functional-practices/languages/typescript.md)
+- [SOLID principles](../standards/solid-principles/languages/typescript.md)
+- [stateless OOP and dependency injection](../standards/stateless-oop-di/languages/typescript.md)
+- [testing](../standards/testing/languages/typescript.md)
+- [utilities](../standards/utilities/languages/typescript.md)
+- [validation](../standards/validation/languages/typescript.md)
 
-## Template maintenance
+## Template maintenance boundary
 
-`bun-base` is consumed by sibling templates before formal template promotion.
-Keep CyanPrint-managed/shared scaffold edits additive. Settings a downstream
-template is expected to adapt:
-
-- **Package metadata** — `package.json` `name`/`description` (and the scoped
-  publish name, the single source of the instance identity).
-- **Coverage thresholds** — `codecov.yml` and any Bun thresholds added later.
-- **Badges / template promotion** — the `AtomiCloud/diene.bun-lib` paths in
-  `README.md` badges are rewritten on promotion.
-- **Sample source/tests** — `src/lib`, `src/adapters`, `src/index.ts`, and the
-  matching `tests/` suites are illustrative and replaced per service.
-
-The secret task file (`tasks/Taskfile.secret.yaml`) is intentionally left
-untouched by the Bun baseline — there is no direct Bun dependency on it.
-
-Merge ownership stays manual: CI is driven to green, but the actual merge is a
-human action.
+Downstream templates may adapt package identity, coverage thresholds, badges,
+and the fenced illustrative `src/` plus `tests/` sample. They should not fork
+the inherited task, workflow, release, Nix, lint,
+or standards machinery. Shared fixes land at the earliest owning branch and
+merge down.
